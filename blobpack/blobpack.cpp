@@ -32,14 +32,14 @@ main (int argc, char **argv)
     }
 
   outname = argv[1];
-  partnums = argc - GENERIC_ARGS; 
+  partnums = argc - GENERIC_ARGS;
 
   if(partnums <= 0 || partnums % 2 != 0)
   {
     fprintf(stderr, "Error in parameters. There needs to be equal partition names and partition filenames.");
     return -1;
   }
-  // Two parameters per partition. 
+  // Two parameters per partition.
   // At this point we know there is a dividable-by-two number of parameters left
   partnums = partnums / 2;
   printf("Found %d partitions as commandline arguments\n", partnums);
@@ -52,9 +52,9 @@ main (int argc, char **argv)
     curr_part->filename = argv[i+1];
     curr_part++;
   };
-  
+
   memcpy(hdr.magic, MAGIC, MAGIC_SIZE);
-  hdr.version = 0x00010000; // Taken from 
+  hdr.version = 0x00010000; // Taken from
   hdr.size = hdr.part_offset = sizeof(header_type);
   hdr.num_parts = partnums;
 
@@ -76,7 +76,7 @@ main (int argc, char **argv)
       memcpy(parts[i].name, partitions[i].part_name, PART_NAME_LEN);
       parts[i].version = 1; // Version. OK to stay at 1 always.
       parts[i].offset = currentOffset;
-      
+
       if(curfile == NULL)
       {
         fprintf(stderr,"Error opening file %s\n", partitions[i].filename);

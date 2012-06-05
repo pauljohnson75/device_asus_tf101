@@ -1,4 +1,5 @@
-import init.nv_dev_board.usb.rc
+import init.ventana.usb.rc
+import init.ventana.keyboard.rc
 
 on early-init
     mount debugfs debugfs /sys/kernel/debug
@@ -12,17 +13,18 @@ on early-init
     # create directory for mounting usb drives
     mkdir /Removable 0755 media_rw media_rw
 
-    # make the pathes for the external media mounts
+on fs
+    mount ext4 /dev/block/mmcblk0p1 /system wait noauto_da_alloc ro
+    setprop ro.crypto.tmpfs_options size=128m,mode=0771,uid=1000,gid=1000
+    mount ext4 /dev/block/mmcblk0p7 /data wait noatime nodiratime nosuid nodev noauto_da_alloc,errors=panic
+    mount ext4 /dev/block/mmcblk0p2 /cache wait noatime nodiratime nosuid nodev noauto_da_alloc,errors=panic
+    mount tmpfs tmpfs /Removable mode=0755,gid=1000
+
+    # temp fix for external storage mounts
     mkdir /Removable/MicroSD 0666 system system
+    mkdir /Removable/SD 0666 system system
     mkdir /Removable/USBdisk1 0666 system system
     mkdir /Removable/USBdisk2 0666 system system
-    mkdir /Removable/SD 0666 system system
-
-on fs
-    mount ext4 /dev/block/mmcblk0p1 /system wait ro
-    setprop ro.crypto.tmpfs_options size=128m,mode=0771,uid=1000,gid=1000
-    mount ext4 /dev/block/mmcblk0p7 /data wait noatime nodiratime nosuid nodev nodelalloc,errors=panic
-    mount ext4 /dev/block/mmcblk0p2 /cache wait noatime nodiratime nosuid nodev nodelalloc,errors=panic
 
 on post-fs-data
     mkdir /data/misc/wifi 0770 wifi wifi
@@ -40,7 +42,7 @@ on post-fs-data
     setprop vold.post_fs_data_done 1
 
 on boot
-     insmod /system/lib/modules/battery_rvsd.ko
+    insmod /system/lib/modules/battery_rvsd.ko
 # bluetooth
     # UART device
     chmod 0660 /dev/ttyHS2
@@ -79,8 +81,11 @@ on boot
     write /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq 216000
     write /sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq 1000000
     write /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor interactive
-    write /sys/devices/system/cpu/cpufreq/interactive/go_maxspeed_load 94
+    write /sys/devices/system/cpu/cpufreq/interactive/go_maxspeed_load 80
     write /sys/module/cpuidle/parameters/lp2_in_idle 1
+
+# We dont want to swap keys unless needed
+    setprop sys.dockkeys.change 0
 
 # Touchscreen Config-UI interface
    chmod 666 /sys/devices/platform/tegra-i2c.0/i2c-0/0-005a/debug_enable
@@ -110,8 +115,7 @@ on boot
     chmod 0664 /sys/class/gpio/gpio203/value
 
 #NTFS exFAT support
-#    insmod /sbin/tntfs.ko
-#    insmod /sbin/texfat.ko
+    insmod /sbin/texfat.ko
 
 # RIL
 # Define TCP buffer sizes for hspa networks
@@ -127,7 +131,7 @@ service wifimacwriter /system/bin/wifimacwriter
     oneshot
 
 service wpa_supplicant /system/bin/wpa_supplicant \
-    -Dwext -iwlan0 -c/data/misc/wifi/wpa_supplicant.conf
+    -Dnl80211 -iwlan0 -puse_p2p_group_interface=1 -e/data/misc/wifi/entropy.bin
 #   we will start as root and wpa_supplicant will switch to user wifi
 #   after setting up the capabilities required for WEXT
 #   user wifi
@@ -198,7 +202,7 @@ service bugreport /system/bin/dumpstate -d -v -o /data/storage/bugreports/bugrep
 
 #BCM
 service hciattach /system/bin/brcm_patchram_plus --enable_hci --scopcm=0,2,0,0,0,0,0,0,0,0 \
-    --baudrate 3000000 --patchramdir /etc/firmware --enable_lpm --tosleep=50000 /dev/ttyHS2
+    --baudrate 3000000 --patchram /etc/firmware/bcm4329.hcd --enable_lpm --tosleep=50000 /dev/ttyHS2
     class main
     user root
     group system bluetooth net_bt_admin misc
@@ -210,78 +214,6 @@ service hciattach /system/bin/brcm_patchram_plus --enable_hci --scopcm=0,2,0,0,0
   user root
   group root 
   class late_start
-
-# logtool service start
-service logdog-conf /system/bin/sh /data/data/com.asus.LogTool/files/logdog-conf.sh
-    user root
-    group root
-    oneshot
-
-service sunnyd /data/data/com.asus.LogTool/files/sunnyd
-    user root
-    group root
-    disabled
-
-service logdog-system /system/bin/sh /data/data/com.asus.LogTool/files/logdog-starter.sh /data/local/tmp/logdog-system.conf
-    user root
-    group root
-    disabled
-    class logging-services
-
-service logdog-main /system/bin/sh /data/data/com.asus.LogTool/files/logdog-starter.sh /data/local/tmp/logdog-main.conf
-    user root
-    group root
-    disabled
-    class logging-services
-
-service logdog-radio /system/bin/sh /data/data/com.asus.LogTool/files/logdog-starter.sh /data/local/tmp/logdog-radio.conf
-    user root
-    group root
-    disabled
-    class logging-services
-
-service logdog-events /system/bin/sh /data/data/com.asus.LogTool/files/logdog-starter.sh /data/local/tmp/logdog-events.conf
-    user root
-    group root
-    disabled
-    class logging-services
-
-service klogdog /system/bin/sh /data/data/com.asus.LogTool/files/klogdog-starter.sh
-    user root
-    group root
-    disabled
-    class logging-services
-
-service tcpdump /system/bin/sh /data/data/com.asus.LogTool/files/tcpdump-starter.sh
-    user root
-    group root
-    disabled
-    class logging-services
-
-service hcidump /system/bin/sh /data/data/com.asus.LogTool/files/hcidump-starter.sh
-    user root
-    group root
-    disabled
-    class logging-services
-
-service hwqxdm /system/bin/sh /data/data/com.asus.LogTool/files/hwqxdm-starter.sh
-    user root
-    group root
-    oneshot
-    class logging-services
-
-service archive-logs /system/bin/sh /data/data/com.asus.LogTool/files/archive-logs.sh
-    user root
-    group root
-    disabled
-    oneshot
-
-service flush-logs /system/bin/sh /data/data/com.asus.LogTool/files/flush-logs.sh
-    user root
-    group root
-    disabled
-    oneshot
-#logtool service end
 
 # Mount usb drives as /usbdrive. Generally usb drives are formatted with FAT
 # filesystem, so we support FAT as of now.
